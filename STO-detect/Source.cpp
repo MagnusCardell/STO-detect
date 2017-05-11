@@ -10,6 +10,10 @@ using namespace cv;
 
 int threshold_val = 127;
 
+struct Hand_coordinates {
+	int x_co;
+	int y_co;
+};
 /*	Setup function.
 	- creates window and trackbar to adjust threshold
 */
@@ -25,7 +29,7 @@ void setup_window(CascadeClassifier &face_cascade) {
 	- Finds center of contrast figure (palm)
 	- draws roi window
 */
-vector<Mat> draw_palm_roi(Mat &frame) {
+Hand_coordinates draw_palm_roi(Mat &frame) {
 	Rect roi_ = Rect(50, 50, 250, 250); //Size of Rectangle
 	Mat roi = frame(roi_); //get frame from video stream
 	cvtColor(roi, roi, CV_BGR2GRAY); //convert to grayscale
@@ -33,6 +37,13 @@ vector<Mat> draw_palm_roi(Mat &frame) {
 	threshold(roi, roi, threshold_val, 255, CV_THRESH_BINARY_INV); //Convert feed into contrast
 	//Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
 	//dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
+	cv::Mat skin;
+	//first convert our RGB image to YCrCb
+	cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+	//uncomment the following line to see the image in YCrCb Color Space
+	imshow("YCrCb Color Space",skin);
+	//filter the image in YCrCb color space
+	inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
 
 	 /*-calc centroid of the palm */ //-Magical
 	float cx = 0.0, cy = 0.0; //starting values
@@ -46,12 +57,13 @@ vector<Mat> draw_palm_roi(Mat &frame) {
 	}
 	cx /= sumi;
 	cy /= sumi;
-
+	Hand_coordinates palm = { cx, cy };
 	line(frame, Point(cx + roi_.x, cy + roi_.y), Point(cx + roi_.x, cy + roi_.y), Scalar(0, 0, 255), 5); //centroid
 	rectangle(frame, roi_, Scalar(255, 0, 0), 2); //draw a rectangle on frame
+
 	imshow("roi", roi);
-	vector<Mat> palm_frames; //future place for frames of palms
-	return palm_frames;
+	return palm;
+
 }
 
 /* Facedetection function
@@ -77,7 +89,7 @@ vector<Rect> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade) {
 	while (true) {
 		cap >> frame;
-		vector <Mat> palms = draw_palm_roi(frame); //draw rectangle and central point of palm.
+		Hand_coordinates palm = draw_palm_roi(frame); //draw rectangle and central point of palm.
 		vector<Rect> faces = facedetection(frame, face_cascade);
 
 		imshow("live feed", frame);
