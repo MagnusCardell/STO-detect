@@ -62,10 +62,10 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 /* Facedetection function
 	- collect faces with Haar Cascade analysis.
 */
-vector<Rect> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
+vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 	Mat gray; //Frame where the faces will reside
 	vector<Rect> faces; //collection of rectangle sizes
-	vector<Mat> Faces_comp; //collection of faces
+	vector<Mat> faces_comp; //collection of faces
 	face_cascade.detectMultiScale(frame, faces, 1.1, 3, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(100, 100)); //For better performance set min face size to 100x100
 	for (int i = 0; i < faces.size(); i++) {
 
@@ -87,22 +87,24 @@ vector<Rect> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 		imshow("WOw", skin);
 		*/
 		Rect roi_ = Rect(50, 50, 250, 250);
-		Rect face = Rect(pt1, pt2, faces[i].width, faces[i].height);
+		Rect face = Rect(pt1.x-faces[i].width, pt1.y-faces[i].height, faces[i].width, faces[i].height);
 		Mat roi = frame(face);
-		imshow("riu1,", roi);
+		resize(roi, roi, Size(50, 50));
+		imshow("riu1," +i , roi);
+		faces_comp.push_back(roi);
 
 	}
 	//imshow("test", face);
 	
-	return faces;
+	return faces_comp;
 }
 
 void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade) {
 	while (true) {
 		cap >> frame;
 		Hand_coordinates palm = draw_palm_roi(frame); //draw rectangle and central point of palm.
-		vector<Rect> faces = facedetection(frame, face_cascade);
-
+		vector<Mat> faces = facedetection(frame, face_cascade);
+		cout << faces.size() << endl;
 		imshow("live feed", frame);
 		for (int i = 0; i < faces.size(); ++i) {
 			cout << faces[i].size() << endl;
@@ -120,6 +122,8 @@ int main() {
 	cap >> frame; //initial zero frame
 	CascadeClassifier face_cascade;	//create cascade classifier used for the face detection
 	setup_window(face_cascade);
+
+
 
 	// start capture
 	start_capture(cap, frame, face_cascade);
