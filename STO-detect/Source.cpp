@@ -9,18 +9,24 @@ using namespace std;
 using namespace cv;
 
 int threshold_val = 127;
-/**Function readimage
-1 argument - string: file
--Read .jpg file associated with that filename and store in a matrix
-Return matrix - Mat: image
-*/
-Mat readimage(string file) {
-	Mat image = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
-	if (image.empty()) { //Checkpoint
-		cout << "Error [image read in] : Image cannot be loaded" << endl;
-	}
-	return image;
-}
+const int numberofsets = 1;
+
+Mat average[numberofsets];
+//Vector of Matrices that will collect all images
+vector<Mat> faces[numberofsets];
+//Get the covariance matrix
+Mat combine[numberofsets];
+Mat eigenval[numberofsets], eigenvect[numberofsets];
+Mat top4vectors[numberofsets];
+
+vector<Mat> eigenfacesimage[numberofsets];
+vector<Mat> eigenfacesvector[numberofsets];
+vector<Mat> imageprojection[numberofsets];
+vector<Mat> vectprojection[numberofsets];
+vector<float>euclidiandist[numberofsets];
+float lowest[numberofsets];
+
+
 
 struct Hand_coordinates {
 	int x_co;
@@ -80,25 +86,11 @@ vector<Mat> face_capture(Mat &frame, CascadeClassifier &face_cascade) {
 	return faces_comp;
 }
 
-Mat *face_processing(vector<Mat> train) {
+void face_processing(vector<Mat> train) {
 
-	const int numberofsets = 1;
 
 	Mat image = train[0];
-	Mat average[numberofsets];
-	//Vector of Matrices that will collect all images
-	vector<Mat> faces[numberofsets];
-	//Get the covariance matrix
-	Mat combine[numberofsets];
-	Mat eigenval[numberofsets], eigenvect[numberofsets];
-	Mat top4vectors[numberofsets];
-	vector<Mat> eigenfacesimage[numberofsets];
-	vector<Mat> eigenfacesvector[numberofsets];
-	vector<Mat> imageprojection[numberofsets];
-	vector<Mat> vectprojection[numberofsets];
-	vector<float>euclidiandist[numberofsets];
-	float lowest[numberofsets];
-	
+
 	for (int seton = 0; seton < numberofsets; seton++) {
 		average[seton] = Mat::zeros(image.size(), image.type());
 		//empty 2D array for accumulating pixel values over 255 and computing average
@@ -115,7 +107,7 @@ Mat *face_processing(vector<Mat> train) {
 		for (int i = (1 + (10 * seton)); i <= (10 + (10 * seton)); ++i) {
 			//1. read in the file
 			
-			image = train[i];
+			image = train[i-1];
 			//2. collect total values
 			for (int n = 0; n < 50; n++) {
 				for (int k = 0; k < 50; k++) {
@@ -178,7 +170,6 @@ Mat *face_processing(vector<Mat> train) {
 		top4vectors[seton].push_back(eigenvect[seton].row(1));
 		top4vectors[seton].push_back(eigenvect[seton].row(2));
 		top4vectors[seton].push_back(eigenvect[seton].row(3));
-		cout << "AEKBAFE" << endl;
 
 
 		for (int n = 0; n < 10; n++) {
@@ -198,7 +189,6 @@ Mat *face_processing(vector<Mat> train) {
 		}
 		*/
 	}
-	return top4vectors;
 }
 
 
@@ -284,6 +274,86 @@ vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 	
 	return faces_comp;
 }
+void calc_euclidian(vector<Mat> new_faces) {
+	for (int seton = 0; seton < numberofsets; seton++) {
+		//TESTING PHASE!!!
+		Mat testimage = new_faces[0];
+		//Get the feature vector by subtracting the average of test phase
+		testimage -= average[seton];
+		//imwrite("featurevector.jpg", testimage);
+		//Convert the image to vector row project the image on the eigenspac
+		Mat testvect = testimage.reshape(0, 1);
+		testvect.convertTo(testvect, CV_32FC1);
+
+
+		//Multiplication by components
+		//Vector of images and vectors
+		for (int i = 0; i < 4; i++) {
+			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
+
+			Mat temporary = testvect.mul(top4vectors[seton].row(i));
+
+			imageprojection[seton].push_back(norm_0_255(temporary).reshape(1, faces[0][0].rows));
+			//imwrite("testprojection" + to_string(i) + ".jpg", imageprojection[seton].back());
+			vectprojection[seton].push_back(temporary);
+		}
+
+
+
+		//Calculate Euclidian distance
+
+		for (int i = 0; i < 10; i++) {
+			for (int n = 0; n < 4; n++) {
+				double dist = norm(eigenfacesvector[seton][i] - vectprojection[seton][n], NORM_L2); //Euclidian distance
+				euclidiandist[seton].push_back(dist);
+			}
+		}
+
+
+		float sum = 0;
+		lowest[seton] = euclidiandist[seton][0];
+		for (int i = 0; i < euclidiandist[seton].size(); i++) {
+			/*
+			if (threshhold > euclidiandist[i]) {
+			face = 1;
+			cout <<"it was me" << euclidiandist[i] << endl;
+			}
+			*/
+			//cout << euclidiandist[i] << endl;
+			sum += euclidiandist[seton][i];
+			if (lowest[seton] > euclidiandist[seton][i]) {
+				lowest[seton] = euclidiandist[seton][i];
+			}
+		}
+		float averagenumb = sum / euclidiandist[seton].size();
+		cout << "Average distance: " << averagenumb << endl;
+		cout << "The smallest distance: " << lowest[seton] << endl;
+	}
+
+
+	float low = lowest[0];
+	int num = 0;
+	for (int in = 0; in < numberofsets; in++) {
+		if (low>lowest[in]) {
+			low = lowest[in];
+			num = in;
+		}
+	}
+	cout << "The smallest distance was " << low << ". From set " << num << endl;
+
+
+
+
+
+	//imwrite("average.jpg", average[0]);
+	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
+											//imshow("MyWindow", average[0]); //display the image which is stored in the 'img' in the "MyWindow" window
+
+	waitKey(0); //wait infinite time for a keypress
+
+
+
+}
 
 void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade) {
 	while (true) {
@@ -295,13 +365,17 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 		for (int i = 0; i < faces.size(); ++i) {
 			cout << faces[i].size() << endl;
 		}
+		calc_euclidian(faces);
 		cvWaitKey(10);
 	}
+
 	return;
 }
 
 int main() {
 	cout << "Hello! Welcome to STO-detect" << endl;
+
+
 	//set up
 	VideoCapture cap(0);
 	Mat frame;
@@ -310,9 +384,9 @@ int main() {
 	setup_window(face_cascade);
 
 	vector<Mat> train_faces = face_capture(frame, face_cascade);
-	Mat *eigenfaces = face_processing(train_faces);
+	face_processing(train_faces);
 	// start capture
-	//start_capture(cap, frame, face_cascade);
+	start_capture(cap, frame, face_cascade);
 
 	return 0;
 }
