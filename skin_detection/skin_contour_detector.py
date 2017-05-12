@@ -18,16 +18,10 @@ if args.get("video", None) is None:
 else:
 	camera = cv2.VideoCapture(args["video"])
 
-#camera = cv2.VideoCapture('coaster.mp4')
-#camera = cv2.VideoCapture('stretching.mp4')
-camera = cv2.VideoCapture('tv.mp4')
+roi = cv2.imread('hand2.jpg')  # the skin sample
 
-roi = cv2.imread('hand2.jpg')
 hsv = cv2.cvtColor(roi,cv2.COLOR_BGR2HSV)
 
-
-#target = cv2.imread('family3.jpg')
-#hsvt = cv2.cvtColor(target,cv2.COLOR_BGR2HSV)
 while(camera.isOpened()):
 
     ret, target = camera.read()
@@ -49,8 +43,8 @@ while(camera.isOpened()):
     cv2.filter2D(dst,-1,disc,dst)
     # threshold and binary AND
     ret,thresh = cv2.threshold(dst,50,255,0)
-#    thresh = cv2.erode(thresh, None, iterations=2)
-#    thresh = cv2.dilate(thresh, None, iterations=2)
+    thresh = cv2.erode(thresh, None, iterations=4)
+    thresh = cv2.dilate(thresh, None, iterations=4)
 
     cnts = cv2.findContours(thresh.copy(),cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if imutils.is_cv2() else cnts[1]
@@ -61,9 +55,6 @@ while(camera.isOpened()):
     thresh = cv2.merge((thresh,thresh,thresh))
     
     res = cv2.bitwise_and(target,thresh)
-    #res = np.vstack((target,thresh,res))
-    
-    #cv2.imshow('frame',np.hstack([frame, res]))
 
     cv2.imshow('frame',target)
     cv2.imshow('result',res)
@@ -73,8 +64,3 @@ while(camera.isOpened()):
 
 camera.release()
 cv2.destroyAllWindows()
-
-#cv2.imshow('res.jpg',res)
-#cv2.waitKey(0)
-#cv2.imwrite('res.jpg',res)
-
