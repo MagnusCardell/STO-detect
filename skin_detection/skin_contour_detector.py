@@ -1,6 +1,22 @@
 import cv2
 import imutils
+import argparse
 import numpy as np
+
+# construct the argument parser and parse the arguments
+ap = argparse.ArgumentParser()
+ap.add_argument("-v", "--video", help="path to the video file")
+ap.add_argument("-a", "--min-area", type=int, default=500, help="minimum area size")
+args = vars(ap.parse_args())
+ 
+# if the video argument is None, then we are reading from webcam
+if args.get("video", None) is None:
+	camera = cv2.VideoCapture(0)
+	time.sleep(0.25)
+ 
+# otherwise, we are reading from a video file
+else:
+	camera = cv2.VideoCapture(args["video"])
 
 #camera = cv2.VideoCapture('coaster.mp4')
 #camera = cv2.VideoCapture('stretching.mp4')
