@@ -88,8 +88,9 @@ vector<Mat> face_capture(Mat &frame, CascadeClassifier &face_cascade) {
 
 void face_processing(vector<Mat> train) {
 
-
-	Mat image = train[0];
+	Mat image;
+	Mat color = train[0];
+	cvtColor(color, image, CV_BGR2GRAY);
 
 	for (int seton = 0; seton < numberofsets; seton++) {
 		average[seton] = Mat::zeros(image.size(), image.type());
@@ -106,8 +107,9 @@ void face_processing(vector<Mat> train) {
 		int s = 0;
 		for (int i = (1 + (10 * seton)); i <= (10 + (10 * seton)); ++i) {
 			//1. read in the file
-			
-			image = train[i-1];
+			color = train[i-1];
+
+			cvtColor(color, image, CV_BGR2GRAY);
 			//2. collect total values
 			for (int n = 0; n < 50; n++) {
 				for (int k = 0; k < 50; k++) {
@@ -340,8 +342,6 @@ void calc_euclidian(vector<Mat> new_faces) {
 		}
 	}
 	cout << "The smallest distance was " << low << ". From set " << num << endl;
-
-
 
 
 
