@@ -37,13 +37,6 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	threshold(roi, roi, threshold_val, 255, CV_THRESH_BINARY_INV); //Convert feed into contrast
 	//Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
 	//dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
-	cv::Mat skin;
-	//first convert our RGB image to YCrCb
-	cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
-	//uncomment the following line to see the image in YCrCb Color Space
-	imshow("YCrCb Color Space",skin);
-	//filter the image in YCrCb color space
-	inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
 
 	 /*-calc centroid of the palm */ //-Magical
 	float cx = 0.0, cy = 0.0; //starting values
@@ -70,15 +63,33 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	- collect faces with Haar Cascade analysis.
 */
 vector<Rect> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
-	Mat gray, face; //Frame where the faces will reside
+	Mat gray; //Frame where the faces will reside
 	vector<Rect> faces; //collection of rectangle sizes
+	vector<Mat> Faces_comp; //collection of faces
 	face_cascade.detectMultiScale(frame, faces, 1.1, 3, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(100, 100)); //For better performance set min face size to 100x100
 	for (int i = 0; i < faces.size(); i++) {
+
 		Point pt1(faces[i].x + faces[i].width, faces[i].y + faces[i].height);
 		Point pt2(faces[i].x, faces[i].y);
 		rectangle(frame, pt1, pt2, cvScalar(0, 255, 0, 0), 1, 0, 0); //Rectangle around the face
 		//Mat face = gray(faces[i]); //convert the position of the face into the face. 
 		//resize(face, face, Size(50, 50), 1.0, 1.0, INTER_CUBIC);
+		/*
+		cv::Mat skin;
+		//first convert our RGB image to YCrCb
+		cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+		//uncomment the following line to see the image in YCrCb Color Space
+		imshow("YCrCb Color Space", skin);
+		//filter the image in YCrCb color space
+		inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
+		
+		//findContours(skin, skin, 1, 1 );
+		imshow("WOw", skin);
+		*/
+		Rect roi_ = Rect(50, 50, 250, 250);
+		Rect face = Rect(pt1, pt2, faces[i].width, faces[i].height);
+		Mat roi = frame(face);
+		imshow("riu1,", roi);
 
 	}
 	//imshow("test", face);
