@@ -3,7 +3,6 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/highgui/highgui.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
-//#include<algorithm>
 
 using namespace std;
 using namespace cv;
@@ -15,9 +14,9 @@ struct Hand_coordinates {
 	int y_co;
 };
 
-struct pca_data {
+struct Pca_data {
 	Mat average;
-	vector<Mat> top4vectors;
+	Mat top4vectors;
 	Mat image;
 	vector<Mat> eigenfacesvector;
 };
@@ -86,12 +85,13 @@ vector<Mat> face_trainer(VideoCapture &cap, Mat &frame, CascadeClassifier &face_
 	return faces_comp;
 }
 
-pca_data face_processing(vector<Mat> train) {
+Pca_data face_processing(vector<Mat> train) {
+	Pca_data result;
 	//read first image then replace all values to create a blueprint
 	Mat color = train[0];
-	Mat image;
-	cvtColor(color, image, CV_BGR2GRAY);
-	Mat average = Mat::zeros(image.size(), image.type());
+	result.image;
+	cvtColor(color, result.image, CV_BGR2GRAY);
+	result.average = Mat::zeros(result.image.size(), result.image.type());
 
 	//empty 2D array for accumulating pixel values over 255 and computing average
 	int **collect;
@@ -115,7 +115,7 @@ pca_data face_processing(vector<Mat> train) {
 			for (int k = 0; k < 50; k++) {
 				//Target pixel value and store it in collect array to perform pixel operations above 255
 				// Scalar type is a 3-channel data type. We just want the first channel
-				Scalar intensity = image.at<uchar>(n, k);
+				Scalar intensity = result.image.at<uchar>(n, k);
 				collect[n][k] += intensity.val[0];
 			}
 		}
@@ -126,15 +126,15 @@ pca_data face_processing(vector<Mat> train) {
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
 				//Scalar type is necessary to keep the 3-channel data type of a Matrix
-				Scalar intensity2 = average.at<uchar>(n, k);
+				Scalar intensity2 = result.average.at<uchar>(n, k);
 				intensity2.val[0] = (collect[n][k]) / 10;
-				average.at<uchar>(n, k) = intensity2.val[0];
+				result.average.at<uchar>(n, k) = intensity2.val[0];
 			}
 		}
 	}
 	//subtract average faces from every face:
 	for (int i = 0; i<10; i++) {
-		train[i] -= average;
+		train[i] -= result.average;
 	}
 	//Get the covariance matrix
 	Mat combine = formatImagesForPCA(train); //function for pushing all images into one matrix
@@ -156,32 +156,29 @@ pca_data face_processing(vector<Mat> train) {
 
 
 	//Get the top 4 vectors from top 4 eigenvalues
-	Mat top4vectors;
+	result.top4vectors;
 	int e_vectnumb = 4;
 	for (int i = 0; i < e_vectnumb; i++) {
-		top4vectors.push_back(eigenvect.row(i));
+		result.top4vectors.push_back(eigenvect.row(i));
 	}
 
 	//Multiply each eigenvector with each of the (face - average) matrix
 	//Vector of images and vectors
 	vector<Mat> eigenfacesimage;
-	vector<Mat> eigenfacesvector;
+	result.eigenfacesvector;
 
 	for (int n = 0; n < 10; n++) {
 		for (int i = 0; i < 4; i++) {
 			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
-			Mat eigenfacevector = combine.row(n).mul(top4vectors.row(i));
+			Mat eigenfacevector = combine.row(n).mul(result.top4vectors.row(i));
 			eigenfacesimage.push_back(norm_0_255(eigenfacevector).reshape(1, train[0].rows));
-			eigenfacesvector.push_back(eigenfacevector);
+			result.eigenfacesvector.push_back(eigenfacevector);
 
 		}
 	}
 	cout << "The amount of Eigenfaces are: " << eigenfacesimage.size() << endl;
 
-
-	pca_data package{ average, top4vectors, image, eigenfacesvector };
-
-	return package;
+	return result;
 }
 
 
@@ -249,16 +246,16 @@ vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 		//Set RGB values. check in range
 		//Do Morphological operations
 		//Dilate before erode
-		cv::Mat skin;
+		//cv::Mat skin;
 		//first convert our RGB image to YCrCb
-		cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+		//cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
 		//uncomment the following line to see the image in YCrCb Color Space
-		imshow("YCrCb Color Space", skin);
+		//imshow("YCrCb Color Space", skin);
 		//filter the image in YCrCb color space
-		inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
+		//inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
 		
 		//findContours(skin, skin, 1, 1 );
-		imshow("WOw", skin);
+		//imshow("WOw", skin);
 
 		
 
@@ -274,13 +271,13 @@ vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 	return faces_comp;
 }
 
-void calc_euclidian(vector<Mat> new_faces, pca_data &pca_result) {
-
+void calc_euclidian(vector<Mat> new_faces, Pca_data &res) {
+	
 	for (auto testimage : new_faces) {
-
+		cvtColor(testimage, testimage, CV_BGR2GRAY); //convert to grayscale
 		//Get the feature vector by subtracting the average of test phase
-		testimage -= pca_result.average;
-		imwrite("featurevector.jpg", testimage);
+		testimage -= res.average;
+		//imshow("featurevector.jpg", testimage);
 		//Convert the image to vector row project the image on the eigenspac
 		Mat testvect2 = testimage.reshape(0, 1);
 		Mat testvect;
@@ -293,16 +290,16 @@ void calc_euclidian(vector<Mat> new_faces, pca_data &pca_result) {
 
 		for (int i = 0; i < 4; i++) {
 			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
-			//Mat temporary = testvect.mul(pca_result.top4vectors.row(i));
-			//imageprojection.push_back(norm_0_255(temporary).reshape(1, pca_result.image.rows));
-			//imwrite("testprojection" + to_string(i) + ".jpg", imageprojection.back());
-			//vectprojection.push_back(temporary);
+			Mat temporary = testvect.mul(res.top4vectors.row(i));
+			imageprojection.push_back(norm_0_255(temporary).reshape(1, res.image.rows));
+			//imshow("testprojection" + to_string(i) + ".jpg", imageprojection.back());
+			vectprojection.push_back(temporary);
 		}
 		//Calculate Euclidian distance
 		vector<float>euclidiandist;
 		for (int i = 0; i < 10; i++) {
 			for (int n = 0; n < 4; n++) {
-				double dist = norm(pca_result.eigenfacesvector[i] - vectprojection[n], NORM_L2); //Euclidian distance
+				double dist = norm(res.eigenfacesvector[i] - vectprojection[n], NORM_L2); //Euclidian distance
 				euclidiandist.push_back(dist);
 			}
 		}
@@ -328,7 +325,7 @@ void calc_euclidian(vector<Mat> new_faces, pca_data &pca_result) {
 }
 
 
-void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade, pca_data &pca_training) {
+void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade, Pca_data &pca_training) {
 	while (true) {
 		cap >> frame;
 		Hand_coordinates palm = draw_palm_roi(frame); //draw rectangle and central point of palm.
@@ -339,7 +336,7 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 		for (int i = 0; i < faces.size(); ++i) {
 			cout << faces[i].size() << endl;
 		}
-		//calc_euclidian(faces, pca_training);
+		calc_euclidian(faces, pca_training);
 		cvWaitKey(10);
 	}
 
@@ -358,8 +355,10 @@ int main() {
 	setup_window(face_cascade);
 
 	vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
-	pca_data result;
-	//result = face_processing(train_faces);
+	Pca_data result;
+	result = face_processing(train_faces);
+	
+
 	// start capture
 	start_capture(cap, frame, face_cascade, result);
 
