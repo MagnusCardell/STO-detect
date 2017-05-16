@@ -253,7 +253,10 @@ vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 		rectangle(frame, pt1, pt2, cvScalar(0, 255, 0, 0), 1, 0, 0); //Rectangle around the face
 		//Mat face = gray(faces[i]); //convert the position of the face into the face. 
 		//resize(face, face, Size(50, 50), 1.0, 1.0, INTER_CUBIC);
-		/*
+		
+		//Set RGB values. check in range
+		//Do Morphological operations
+		//Dilate before erode
 		cv::Mat skin;
 		//first convert our RGB image to YCrCb
 		cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
@@ -264,7 +267,9 @@ vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
 		
 		//findContours(skin, skin, 1, 1 );
 		imshow("WOw", skin);
-		*/
+
+		
+
 		Rect face = Rect(pt1.x-faces[i].width, pt1.y-faces[i].height, faces[i].width, faces[i].height);
 		Mat roi = frame(face);
 		resize(roi, roi, Size(50, 50));
@@ -365,7 +370,7 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 		for (int i = 0; i < faces.size(); ++i) {
 			cout << faces[i].size() << endl;
 		}
-		calc_euclidian(faces);
+		//calc_euclidian(faces);
 		cvWaitKey(10);
 	}
 
@@ -384,7 +389,7 @@ int main() {
 	setup_window(face_cascade);
 
 	vector<Mat> train_faces = face_capture(frame, face_cascade);
-	face_processing(train_faces);
+	//face_processing(train_faces);
 	// start capture
 	start_capture(cap, frame, face_cascade);
 
