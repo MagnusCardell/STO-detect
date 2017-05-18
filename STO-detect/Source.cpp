@@ -3,11 +3,15 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/highgui/highgui.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
+#include<dirent-1.21\include\dirent.h>
+#include<algorithm>	
 
 using namespace std;
 using namespace cv;
 
 int threshold_val = 127;
+string trainername = "mike";
+string haarcascadelocation = "C:/Users/Magnus/Documents/opencv/build/etc/haarcascades/haarcascade_frontalface_alt.xml";
 
 struct Hand_coordinates {
 	int x_co;
@@ -15,12 +19,132 @@ struct Hand_coordinates {
 };
 
 struct Pca_data {
+	string name;
 	Mat average;
 	Mat top4vectors;
 	Mat image;
 	vector<Mat> eigenfacesvector;
 };
 
+struct BGR {
+	uchar b;
+	uchar g;
+	uchar r;
+}
+;;
+
+int  handColor(Mat &frame1, VideoCapture &cap1) {
+	/** This function is intended to store the color of hand within the rectangle of interest */
+	int p;
+	Mat frame2;
+	Mat preCrop;
+	cout << "\n Press Space when ready to caputure hand color...\n";
+	Rect handR = Rect(100, 200, 100, 100); //Size of Rectangle
+	for (;;) { //Archetypal Capture event
+		cap1 >> frame2;
+		rectangle(frame2, handR, Scalar(0, 0, 255), 1);
+		imshow("Place center of hand here...", frame2);
+		if (cvWaitKey(1) == 32) {
+			cap1.retrieve(preCrop);
+			break;
+		};
+	}
+	cvDestroyWindow("Place center of hand here...");
+	rectangle(preCrop, handR, Scalar(0, 0, 255), 1);
+	imshow("Test", preCrop);
+	Mat croppedImage = preCrop(handR);
+	Mat postCrop;
+	resize(croppedImage, croppedImage, Size(100, 100));
+
+	Rect collection = Rect(5, 5, 92, 92);
+	//This Line tests rectangle placement. Ignore. rectangle(croppedImage, collection, Scalar(255, 0, 0), 1);
+	imshow("Collected Hand", croppedImage);
+	vector<BGR> colors;
+	vector<double> colorsAvg;
+	for (int y = 0; y < croppedImage.rows; y++)
+	{
+		for (int x = 0; x < croppedImage.cols; x++)
+		{
+			// get pixel
+			colors.push_back(croppedImage.ptr<BGR>(y)[x]);
+		}
+	}
+	//Determine average color:
+	double colorsSum = 0;
+	for (int i = 0; i < colors.size(); i++) {
+		colorsAvg.push_back(((colors[i].b + colors[i].g + colors[i].r) / 3));
+	}
+	for (int i = 0; i < colors.size(); i++) {
+		colorsSum += colorsAvg[i];
+	};
+	colorsSum /= colors.size();
+	while (1) {
+		if (cvWaitKey(1) == 32) {
+			cvDestroyWindow("Test");
+			cvDestroyWindow("Collected Hand");
+			break;
+		}
+	}
+
+
+	return colorsSum;
+}
+
+void findSkin(VideoCapture &cap1, int thresher) {
+	Mat frame3;
+	int lo = 20;
+	int hi = 20;
+	int bins = 25;
+	namedWindow("Live Feed", WINDOW_AUTOSIZE);
+	createTrackbar("Low thresh", "Live feed", &lo, 255, 0);
+	createTrackbar("High thresh", "Live feed", &hi, 255, 0);
+	while (1) {
+		cap1 >> frame3;
+		Mat hsv; Mat hue;
+		cvtColor(frame3, hsv, CV_BGR2HSV);
+		imshow("Live Feed", frame3);
+
+
+		MatND hist;
+		int h_bins = 30; int s_bins = 32;
+		int histSize[] = { h_bins, s_bins };
+
+		float h_range[] = { 0, 179 };
+		float s_range[] = { 0, 255 };
+		const float* ranges[] = { h_range, s_range };
+
+		int channels[] = { 0, 1 };
+
+		/// Get the Histogram and normalize it
+		calcHist(&hsv, 1, channels, Mat(), hist, 2, histSize, ranges, true, false);
+
+		normalize(hist, hist, 0, 255, NORM_MINMAX, -1, Mat());
+
+		/// Get Backprojection
+		MatND backproj;
+		calcBackProject(&hsv, 1, channels, hist, backproj, ranges, 1, true);
+		Size a(5, 5);
+		Mat disc;
+		disc = getStructuringElement(MORPH_ELLIPSE, a);
+		filter2D(backproj, disc, -1, backproj);
+		Mat finalOut1;
+		threshold(backproj, finalOut1, thresher, 255, 0);
+		erode(finalOut1, finalOut1, Mat(), Point(-1, -1), 2);
+		dilate(finalOut1, finalOut1, Mat(), Point(-1, -1), 2);
+		const Mat *n3;
+		n3 = new Mat[3];
+		/**finalOut1.copyTo(n3[0]);
+		finalOut1.copyTo(n3[1]);
+		finalOut1.copyTo(n3[2]); */
+		//merge(n3, 3, finalOut1);
+		/// Draw the backproj
+		imshow("BackProj", finalOut1);
+		if (cvWaitKey(1) == 32) {
+			break;
+		}
+	}
+
+}
 
 
 static  Mat formatImagesForPCA(const vector<Mat> &data) {
@@ -161,10 +285,12 @@ void face_processing(vector<Mat> train) {
 
 		}
 	}
-	cout << eigenfacesvector.size() << " AWAFE" << endl;
-	string fname = "magnusface.xml";
+
+
+	string fname = trainername + ".xml";
 	FileStorage fs(fname, FileStorage::WRITE);
 	
+	fs << "name_id" << trainername;
 	fs << "average" << average;
 	fs << "top4vectors" << top4vectors;
 	fs << "image" << image;
@@ -188,12 +314,7 @@ void face_processing(vector<Mat> train) {
 /*	Setup function.
 	- creates window and trackbar to adjust threshold
 */
-void setup_window(CascadeClassifier &face_cascade) {
-	namedWindow("live feed", CV_WINDOW_AUTOSIZE);
-	createTrackbar("Set Threshold Value", "live feed", &threshold_val, 255);
-	face_cascade.load("C:/Users/Magnus/Documents/opencv/build/etc/haarcascades/haarcascade_frontalface_alt.xml");
-	return;
-}
+
 /*-	Draw palm function
 	- define a rectangular RegionOfInterest (roi)
 	- apply Gaussian Blur to remove noise, perform thresholding
@@ -234,128 +355,193 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	- collect faces with Haar Cascade analysis.
 */
 
-vector<Mat> facedetection(Mat &frame, CascadeClassifier &face_cascade) {
+
+vector<Pca_data> read_known_faces() {
+	vector<Pca_data> face_pca;
+	DIR *pDIR;
+	struct dirent *entry;
+	if (pDIR = opendir("../data/")) {
+		while (entry = readdir(pDIR)) {
+			//if not a directory
+			if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+				//cout << entry->d_name << "\n";
+				//read in pca data into vector of struct
+				Pca_data temp;
+				FileStorage fs(entry->d_name, FileStorage::READ);
+				fs["name_id"] >> temp.name;
+				fs["average"] >> temp.average;
+				fs["top4vectors"] >> temp.top4vectors;
+				fs["image"] >> temp.image;
+				FileNode fn = fs["eigenfacesvector"];
+				if (fn.empty()) {
+					cout << "Vector of Mat is empty" << endl;
+					cvWaitKey(0);
+				}
+				//reading in a vector of mat is more complicated
+				FileNodeIterator current = fn.begin(), it_end = fn.end();
+				for (; current != it_end; ++current) {
+					Mat tmp;
+					FileNode item = *current;
+					item >> tmp;
+					temp.eigenfacesvector.push_back(tmp);
+				}
+				face_pca.push_back(temp);
+			}
+
+		}
+		closedir(pDIR);
+	}
+	return face_pca;
+}
+
+
+string calc_euclidian(Mat testimage, vector<Pca_data> &known) {
+	string name = "unknown";
+	//run through available pca xml files to determin closest match
+	int min= 1000;
+	for (auto pca : known) {
+		//int dist;
+		if (testimage.empty())
+			break;
+		else if (testimage.channels()>1)
+			cvtColor(testimage, testimage, CV_BGR2GRAY);
+
+		//cvtColor(testimage, testimage, CV_BGR2GRAY); //convert to grayscale
+		//Get the feature vector by subtracting the average of test phase
+		testimage -= pca.average;
+		//Convert the image to vector row project the image on the eigenspac
+		Mat testvect2 = testimage.reshape(0, 1);
+		Mat testvect;
+		testvect2.convertTo(testvect, CV_32FC1);
+		//Multiplication by components
+		//Vector of images and vectors
+		//vector<Mat> imageprojection;
+		vector<Mat> vectprojection;
+		for (int i = 0; i < 4; i++) {
+			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
+			Mat temporary = testvect.mul(pca.top4vectors.row(i));
+			//imageprojection.push_back(norm_0_255(temporary).reshape(1, pca.image.rows));
+			vectprojection.push_back(temporary);
+		}
+		//Calculate Euclidian distance
+		vector<float>euclidiandist;
+		for (int i = 0; i < 10; i++) {
+			for (int n = 0; n < 4; n++) {
+				double dist = norm(pca.eigenfacesvector[i] - vectprojection[n], NORM_L2); //Euclidian distance
+				euclidiandist.push_back(dist);
+			}
+
+			float sum = 0;
+			int threshold = 10;
+			int mini = 1000;
+
+			for (int s = 0; s < euclidiandist.size(); s++) {
+				if (euclidiandist[s] < mini) mini = euclidiandist[s];
+				if (mini < threshold) {
+					//cout << mini << endl;
+					//cout << pca.name << endl;
+					name = pca.name;
+
+				}
+				sum += euclidiandist[s];
+			}
+			//cout << sum / euclidiandist.size() << endl;
+		}
+		
+
+		/*
+		if (face) {
+			cout << "I KNOW YOU" << endl;
+		}
+		else
+			cout << "I dont know that face!" << endl;
+			*/
+	}
+
+	return name;
+
+}
+void facedetection(Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data> &known) {
 	vector<Rect> faces; //collection of rectangle sizes
-	vector<Mat> faces_comp; //collection of faces
+
 	face_cascade.detectMultiScale(frame, faces, 1.1, 3, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(100, 100)); //For better performance set min face size to 100x100
 	for (int i = 0; i < faces.size(); i++) {
+		Mat face_found; //collection of faces
 
 		Point pt1(faces[i].x + faces[i].width, faces[i].y + faces[i].height);
 		Point pt2(faces[i].x, faces[i].y);
 		rectangle(frame, pt1, pt2, cvScalar(0, 255, 0, 0), 1, 0, 0); //Rectangle around the face
 		//Mat face = gray(faces[i]); //convert the position of the face into the face. 
 		//resize(face, face, Size(50, 50), 1.0, 1.0, INTER_CUBIC);
-		
-		//Set RGB values. check in range
-		//Do Morphological operations
-		//Dilate before erode
-		//cv::Mat skin;
+
+
+		Rect face = Rect(pt1.x - faces[i].width, pt1.y - faces[i].height, faces[i].width, faces[i].height);
+		Mat roi = frame(face);
+		resize(roi, roi, Size(50, 50));
+		imshow("riu1," + i, roi);
+
+		string name = calc_euclidian(roi, known);
+
+		putText(frame, name, Point(frame.cols - 150, 80), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 0, 0), 4); //Write text into frame
+
+	}
+	
+	//cout << name << endl;
+	//imshow("test", face);
+
+	return;
+}
+
+void skindetect(Mat &frame) {
+	Mat skin;
+	//first convert our RGB image to YCrCb
+	cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+	//uncomment the following line to see the image in YCrCb Color Space
+	//imshow("YCrCb Color Space", skin);
+	//filter the image in YCrCb color space
+	inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(210, 173, 115), skin); //255, 173, 125
+	//vector<Points>
+	//findContours(skin, skin, 1, 1 );
+	Mat result;
+	bitwise_and(frame, frame, result, skin);
+	imshow("WOw", result);
+
+}
+
+void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data> &known) {
+	int i = 0; 
+	while (true) {
+		cap >> frame;
+		/*
+		Mat skin;
 		//first convert our RGB image to YCrCb
-		//cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+		cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
 		//uncomment the following line to see the image in YCrCb Color Space
 		//imshow("YCrCb Color Space", skin);
 		//filter the image in YCrCb color space
-		//inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
-		
+		inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 127), skin);
+		//vector<Points>
 		//findContours(skin, skin, 1, 1 );
-		//imshow("WOw", skin);
-
-		
-
-		Rect face = Rect(pt1.x-faces[i].width, pt1.y-faces[i].height, faces[i].width, faces[i].height);
-		Mat roi = frame(face);
-		resize(roi, roi, Size(50, 50));
-		imshow("riu1," +i , roi);
-		faces_comp.push_back(roi);
-
-	}
-	//imshow("test", face);
-	
-	return faces_comp;
-}
-
-void calc_euclidian(vector<Mat> new_faces) {
-	FileStorage fs("magnusface.xml", FileStorage::READ);
-	Mat ave, top4, im;
-	vector<Mat> eig_vects;
-	fs["average"] >> ave;
-	fs["top4vectors"] >> top4;
-	fs["image"] >> im;
-	FileNode fn = fs["eigenfacesvector"];
-	if (fn.empty()) {
-		cout<<"Vector of Mat is empty"<<endl;
-		cvWaitKey(0);
-	}
-	FileNodeIterator current = fn.begin(), it_end = fn.end();
-	for (; current != it_end; ++current) {
-		Mat tmp;
-		FileNode item = *current;
-		item >> tmp;
-		eig_vects.push_back(tmp);
-	}
-
-	for (auto testimage : new_faces) {
-		cvtColor(testimage, testimage, CV_BGR2GRAY); //convert to grayscale
-		//Get the feature vector by subtracting the average of test phase
-		testimage -= ave;
-		//Convert the image to vector row project the image on the eigenspac
-		Mat testvect2 = testimage.reshape(0, 1);
-		Mat testvect;
-		testvect2.convertTo(testvect, CV_32FC1);
-
-		//Multiplication by components
-		//Vector of images and vectors
-		vector<Mat> imageprojection;
-		vector<Mat> vectprojection;
-
-		for (int i = 0; i < 4; i++) {
-			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
-			Mat temporary = testvect.mul(top4.row(i));
-			imageprojection.push_back(norm_0_255(temporary).reshape(1, im.rows));
-			vectprojection.push_back(temporary);
-		}
-		cout << eig_vects.size() << endl;
-		cout << vectprojection.size() << endl;
-		//Calculate Euclidian distance
-		vector<float>euclidiandist;
-		for (int i = 0; i < 10; i++) {
-			for (int n = 0; n < 4; n++) {
-				double dist = norm(eig_vects[i] - vectprojection[n], NORM_L2); //Euclidian distance
-				euclidiandist.push_back(dist);
-			}
-		}
-
-		float sum = 0;
-		int threshhold = 30;
-		bool face = 0;
-		for (int i = 0; i < euclidiandist.size(); i++) {
-			if (threshhold > euclidiandist[i]) {
-				face = 1;
-			}
-			sum += euclidiandist[i];
-		}
-		float averagenumb = sum / euclidiandist.size();
-
-		if (face) {
-			cout << "This is a face" << endl;
-		}
-		else
-			cout << "NO FACE!" << endl;
-	}
-
-}
-
-
-void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade) {
-	while (true) {
-		cap >> frame;
+		Mat result;
+		bitwise_and(frame, frame, result, skin);
+		imshow("WOw", result);
 		//Hand_coordinates palm = draw_palm_roi(frame); //draw rectangle and central point of palm.
-		vector<Mat> faces = facedetection(frame, face_cascade);
-		cout << faces.size() << endl;
-
+		//skindetect(frame);
+		*/
+		facedetection(frame, face_cascade, known);
+		/*
+		Rect roi_ = Rect(50, 50, 250, 250); //Size of Rectangle
+		Mat roi = result(roi_);
+		imshow("roi", roi);
+		if (cvWaitKey(1) == 32) {
+			
+			imwrite("hands" + to_string(i) + ".jpg", roi);
+			i++;
+		}
+		cout << i << endl;
+		*/
 		imshow("live feed", frame);
 
-		calc_euclidian(faces);
 		cvWaitKey(10);
 	}
 
@@ -365,20 +551,26 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 int main() {
 	cout << "Hello! Welcome to STO-detect" << endl;
 
-
 	//set up
 	VideoCapture cap(0);
 	Mat frame;
 	cap >> frame; //initial zero frame
 	CascadeClassifier face_cascade;	//create cascade classifier used for the face detection
-	setup_window(face_cascade);
-	//2 functions to find 10 faces and generate PCA
-	vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
-	face_processing(train_faces);
-	
-	// start capture
-	start_capture(cap, frame, face_cascade);
+	face_cascade.load(haarcascadelocation);
 
+	namedWindow("live feed", CV_WINDOW_AUTOSIZE);
+	//createTrackbar("Set Threshold Value", "live feed", &threshold_val, 255);
+
+	vector<Pca_data> known_faces = read_known_faces(); //read in available facedata
+	//cout << known_faces.size() << endl;
+	
+	//2 function to train new faces
+	//vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
+	//face_processing(train_faces);
+	//return 0;
+
+	// start capture
+	start_capture(cap, frame, face_cascade, known_faces);
 	return 0;
 }
 
