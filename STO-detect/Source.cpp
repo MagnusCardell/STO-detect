@@ -3,7 +3,7 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/highgui/highgui.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
-#include<dirent-1.21\include\dirent.h>
+#include<opencv2/dirent.h>
 #include<algorithm>	
 
 using namespace std;
@@ -11,7 +11,7 @@ using namespace cv;
 
 int threshold_val = 127;
 string trainername = "mike";
-string haarcascadelocation = "C:/Users/Magnus/Documents/opencv/build/etc/haarcascades/haarcascade_frontalface_alt.xml";
+string haarcascadelocation = "C:/opencv/build/etc/haarcascades/haarcascade_frontalface_alt.xml";
 
 struct Hand_coordinates {
 	int x_co;
@@ -492,19 +492,25 @@ void facedetection(Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data>
 	return;
 }
 
-void skindetect(Mat &frame) {
-	Mat skin;
-	//first convert our RGB image to YCrCb
-	cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
-	//uncomment the following line to see the image in YCrCb Color Space
-	//imshow("YCrCb Color Space", skin);
-	//filter the image in YCrCb color space
-	inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(210, 173, 115), skin); //255, 173, 125
-																			//vector<Points>
-																			//findContours(skin, skin, 1, 1 );
-	Mat result;
-	bitwise_and(frame, frame, result, skin);
-	imshow("WOw", result);
+void skindetect(Mat &frame, VideoCapture &cap1) {
+	while (1) {
+		Mat skin;
+		cap1 >> frame;
+		//first convert our RGB image to YCrCb
+		cvtColor(frame, skin, cv::COLOR_BGR2YCrCb);
+		//uncomment the following line to see the image in YCrCb Color Space
+		imshow("YCrCb Color Space", skin);
+		//filter the image in YCrCb color space
+		inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(255, 173, 115), skin); //255, 173, 125
+																				//vector<Points>
+
+		//findContours(skin, skin, 1, 1 );
+		Mat result;
+		//bitwise_and(frame, frame, result, skin);
+		imshow("WOw", skin);
+		if (cvWaitKey(2) == 32) { cvDestroyWindow("WOw"); break;}
+	}
+
 
 }
 
@@ -542,7 +548,10 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 		*/
 		imshow("live feed", frame);
 
-		cvWaitKey(10);
+		if (cvWaitKey(10) == 32) {
+			cvDestroyWindow("live feed");
+			break;
+		}
 	}
 
 	return;
@@ -550,9 +559,9 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 
 int main() {
 	cout << "Hello! Welcome to STO-detect" << endl;
-
+	cvStartWindowThread();
 	//set up
-	VideoCapture cap(0);
+	VideoCapture cap(1);
 	Mat frame;
 	cap >> frame; //initial zero frame
 	CascadeClassifier face_cascade;	//create cascade classifier used for the face detection
@@ -561,16 +570,29 @@ int main() {
 	namedWindow("live feed", CV_WINDOW_AUTOSIZE);
 	//createTrackbar("Set Threshold Value", "live feed", &threshold_val, 255);
 
-	vector<Pca_data> known_faces = read_known_faces(); //read in available facedata
-													   //cout << known_faces.size() << endl;
+	vector<Pca_data> known_faces = read_known_faces(); 
+	//read in available facedata
+													  
+	//cout << known_faces.size() << endl;
 
-													   //2 function to train new faces
-													   //vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
-													   //face_processing(train_faces);
-													   //return 0;
+													
+	//2 function to train new faces
+													  
+													
+	//vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
+													 
+	//face_processing(train_faces);
+													 
+	//return 0;
 
-													   // start capture
+
+													  
+	// start capture
 	start_capture(cap, frame, face_cascade, known_faces);
+
+	
+		
+		skindetect(frame, cap);
 	return 0;
 }
 
