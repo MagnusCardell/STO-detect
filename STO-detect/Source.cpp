@@ -289,7 +289,7 @@ void face_processing(vector<Mat> train) {
 
 	string fname = trainername + ".xml";
 	FileStorage fs(fname, FileStorage::WRITE);
-	
+
 	fs << "name_id" << trainername;
 	fs << "average" << average;
 	fs << "top4vectors" << top4vectors;
@@ -312,14 +312,14 @@ void face_processing(vector<Mat> train) {
 
 
 /*	Setup function.
-	- creates window and trackbar to adjust threshold
+- creates window and trackbar to adjust threshold
 */
 
 /*-	Draw palm function
-	- define a rectangular RegionOfInterest (roi)
-	- apply Gaussian Blur to remove noise, perform thresholding
-	- Finds center of contrast figure (palm)
-	- draws roi window
+- define a rectangular RegionOfInterest (roi)
+- apply Gaussian Blur to remove noise, perform thresholding
+- Finds center of contrast figure (palm)
+- draws roi window
 */
 Hand_coordinates draw_palm_roi(Mat &frame) {
 	Rect roi_ = Rect(50, 50, 250, 250); //Size of Rectangle
@@ -327,10 +327,10 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	cvtColor(roi, roi, CV_BGR2GRAY); //convert to grayscale
 	GaussianBlur(roi, roi, Size(5, 5), 5, 5); //Apply smoothing function - accuracy
 	threshold(roi, roi, threshold_val, 255, CV_THRESH_BINARY_INV); //Convert feed into contrast
-	//Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-	//dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
+																   //Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+																   //dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
 
-	 /*-calc centroid of the palm */ //-Magical
+																   /*-calc centroid of the palm */ //-Magical
 	float cx = 0.0, cy = 0.0; //starting values
 	float sumi = 1.0;
 	for (int i = 0; i < roi.rows; i++) {
@@ -352,7 +352,7 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 }
 
 /* Facedetection function
-	- collect faces with Haar Cascade analysis.
+- collect faces with Haar Cascade analysis.
 */
 
 
@@ -398,7 +398,7 @@ vector<Pca_data> read_known_faces() {
 string calc_euclidian(Mat testimage, vector<Pca_data> &known) {
 	string name = "unknown";
 	//run through available pca xml files to determin closest match
-	int min= 1000;
+	int min = 1000;
 	for (auto pca : known) {
 		//int dist;
 		if (testimage.empty())
@@ -447,15 +447,15 @@ string calc_euclidian(Mat testimage, vector<Pca_data> &known) {
 			}
 			//cout << sum / euclidiandist.size() << endl;
 		}
-		
+
 
 		/*
 		if (face) {
-			cout << "I KNOW YOU" << endl;
+		cout << "I KNOW YOU" << endl;
 		}
 		else
-			cout << "I dont know that face!" << endl;
-			*/
+		cout << "I dont know that face!" << endl;
+		*/
 	}
 
 	return name;
@@ -471,8 +471,8 @@ void facedetection(Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data>
 		Point pt1(faces[i].x + faces[i].width, faces[i].y + faces[i].height);
 		Point pt2(faces[i].x, faces[i].y);
 		rectangle(frame, pt1, pt2, cvScalar(0, 255, 0, 0), 1, 0, 0); //Rectangle around the face
-		//Mat face = gray(faces[i]); //convert the position of the face into the face. 
-		//resize(face, face, Size(50, 50), 1.0, 1.0, INTER_CUBIC);
+																	 //Mat face = gray(faces[i]); //convert the position of the face into the face. 
+																	 //resize(face, face, Size(50, 50), 1.0, 1.0, INTER_CUBIC);
 
 
 		Rect face = Rect(pt1.x - faces[i].width, pt1.y - faces[i].height, faces[i].width, faces[i].height);
@@ -485,7 +485,7 @@ void facedetection(Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data>
 		putText(frame, name, Point(frame.cols - 150, 80), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 0, 0), 4); //Write text into frame
 
 	}
-	
+
 	//cout << name << endl;
 	//imshow("test", face);
 
@@ -500,8 +500,8 @@ void skindetect(Mat &frame) {
 	//imshow("YCrCb Color Space", skin);
 	//filter the image in YCrCb color space
 	inRange(skin, cv::Scalar(0, 133, 77), cv::Scalar(210, 173, 115), skin); //255, 173, 125
-	//vector<Points>
-	//findContours(skin, skin, 1, 1 );
+																			//vector<Points>
+																			//findContours(skin, skin, 1, 1 );
 	Mat result;
 	bitwise_and(frame, frame, result, skin);
 	imshow("WOw", result);
@@ -509,7 +509,7 @@ void skindetect(Mat &frame) {
 }
 
 void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascade, vector<Pca_data> &known) {
-	int i = 0; 
+	int i = 0;
 	while (true) {
 		cap >> frame;
 		/*
@@ -534,9 +534,9 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 		Mat roi = result(roi_);
 		imshow("roi", roi);
 		if (cvWaitKey(1) == 32) {
-			
-			imwrite("hands" + to_string(i) + ".jpg", roi);
-			i++;
+
+		imwrite("hands" + to_string(i) + ".jpg", roi);
+		i++;
 		}
 		cout << i << endl;
 		*/
@@ -548,157 +548,13 @@ void start_capture(VideoCapture &cap, Mat &frame, CascadeClassifier &face_cascad
 	return;
 }
 
-struct BGR {
-public:
-	uchar b;
-	uchar g;
-	uchar r;
-
-};
-
-
-int  handColor(Mat &frame1, VideoCapture &cap1) {
-	/** This function is intended to store the color of hand within the rectangle of interest */
-	int p;
-	Mat frame2;
-	Mat preCrop;
-	cout << "\n Press Space when ready to caputure hand color...\n";
-	Rect handR = Rect(100, 200, 100, 100); //Size of Rectangle
-	for (;;) { //Archetypal Capture event
-		cap1 >> frame2;
-		rectangle(frame2, handR, Scalar(0, 0, 255), 1);
-		imshow("Place center of hand here...", frame2);
-		if (cvWaitKey(1) == 32) {
-			cap1.retrieve(preCrop);
-			break;
-		};
-	}
-	cvDestroyWindow("Place center of hand here...");
-	rectangle(preCrop, handR, Scalar(0, 0, 255), 1);
-	imshow("Test", preCrop);
-	Mat croppedImage = preCrop(handR);
-	Mat postCrop;
-	resize(croppedImage, croppedImage, Size(100, 100));
-
-	Rect collection = Rect(5, 5, 92, 92);
-	//This Line tests rectangle placement. Ignore. rectangle(croppedImage, collection, Scalar(255, 0, 0), 1);
-	imshow("Collected Hand", croppedImage);
-	vector<BGR> colors;
-	vector<double> colorsAvg;
-	for (int y = 0; y < croppedImage.rows; y++)
-	{
-		for (int x = 0; x < croppedImage.cols; x++)
-		{
-			// get pixel
-			colors.push_back(croppedImage.ptr<BGR>(y)[x]);
-		}
-	}
-	//Determine average color:
-	double colorsSum = 0;
-	for (int i = 0; i < colors.size(); i++) {
-		colorsAvg.push_back(((colors[i].b + colors[i].g + colors[i].r) / 3));
-	}
-	for (int i = 0; i < colors.size(); i++) {
-		colorsSum += colorsAvg[i];
-	};
-	colorsSum /= colors.size();
-	while (1) {
-		if (cvWaitKey(1) == 32) {
-			cvDestroyWindow("Test");
-			cvDestroyWindow("Collected Hand");
-			break;
-		}
-	}
-
-
-	return colorsSum;
-}
-
-;
-
-void findSkin(VideoCapture &cap1, int thresher) {
-	Mat frame3;
-	int lo = 20;
-	int hi = 20;
-	int bins = 25;
-	namedWindow("Live Feed", WINDOW_AUTOSIZE);
-	while (1) {
-		cap1 >> frame3;
-		Mat hsv; Mat hue;
-		cvtColor(frame3, hsv, CV_BGR2HSV);
-		imshow("Live Feed", frame3);
-
-
-		MatND hist;
-		int h_bins = 30; int s_bins = 32;
-		int histSize[] = { h_bins, s_bins };
-
-		float h_range[] = { 0, 179 };
-		float s_range[] = { 0, 255 };
-		const float* ranges[] = { h_range, s_range };
-
-		int channels[] = { 0, 1 };
-
-		/// Get the Histogram and normalize it
-		calcHist(&hsv, 1, channels, Mat(), hist, 2, histSize, ranges, true, false);
-
-		normalize(hist, hist, 0, 255, NORM_MINMAX, -1, Mat());
-
-		/// Get Backprojection
-		MatND backproj;
-		calcBackProject(&hsv, 1, channels, hist, backproj, ranges, 1, true);
-		Size a(5, 5);
-		Mat disc;
-		disc = getStructuringElement(MORPH_ELLIPSE, a);
-		filter2D(backproj, disc, -1, backproj);
-		Mat finalOut1;
-		threshold(backproj, finalOut1, thresher, 255, 0);
-		erode(finalOut1, finalOut1, Mat(), Point(-1, -1), 2);
-		dilate(finalOut1, finalOut1, Mat(), Point(-1, -1), 2);
-		const Mat *n3;
-		n3 = new Mat[3];
-		/**finalOut1.copyTo(n3[0]);
-		finalOut1.copyTo(n3[1]);
-		finalOut1.copyTo(n3[2]); */
-		//merge(n3, 3, finalOut1);
-		/// Draw the backproj
-		imshow("BackProj", finalOut1);
-		if (cvWaitKey(1) == 32) {
-			cvDestroyWindow("BackProj");
-			break;
-		}
-	}
-
-}
-
 int main() {
 	cout << "Hello! Welcome to STO-detect" << endl;
 
 	//set up
 	VideoCapture cap(0);
 	Mat frame;
-	 //initial zero frame
-
-	cvStartWindowThread(); // allows destruction
-	
-	while(1) {
-		cap >> frame;
-		imshow("Live feed:", frame);
-		if (cvWaitKey(10) == 32) { 
-			cvDestroyWindow("Live feed:"); break;
-		}
-	}
-
-	int j = handColor(frame, cap);
-	findSkin(cap, j);
-
-
-
-
-	cout << endl << "Jason's stuff works fully!";
-
-
-
+	cap >> frame; //initial zero frame
 	CascadeClassifier face_cascade;	//create cascade classifier used for the face detection
 	face_cascade.load(haarcascadelocation);
 
@@ -706,22 +562,22 @@ int main() {
 	//createTrackbar("Set Threshold Value", "live feed", &threshold_val, 255);
 
 	vector<Pca_data> known_faces = read_known_faces(); //read in available facedata
-	//cout << known_faces.size() << endl;
-	
-	//2 function to train new faces
-	//vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
-	//face_processing(train_faces);
-	//return 0;
+													   //cout << known_faces.size() << endl;
 
-	// start capture
+													   //2 function to train new faces
+													   //vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
+													   //face_processing(train_faces);
+													   //return 0;
+
+													   // start capture
 	start_capture(cap, frame, face_cascade, known_faces);
 	return 0;
 }
 
 
 /* Function Graveyard to use in the future
-	
-	putText(frame, result, Point(frame.cols - 100, 80), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 0, 0), 4); //Write text into frame
+
+putText(frame, result, Point(frame.cols - 100, 80), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 0, 0), 4); //Write text into frame
 
 
 */
