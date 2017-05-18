@@ -4,13 +4,12 @@
 #include<opencv2/highgui/highgui.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
 #include<dirent-1.21\include\dirent.h>
-#include<algorithm>	
 
 using namespace std;
 using namespace cv;
 
 int threshold_val = 127;
-string trainername = "mike";
+string trainername = "jesus";
 string haarcascadelocation = "C:/Users/Magnus/Documents/opencv/build/etc/haarcascades/haarcascade_frontalface_alt.xml";
 
 struct Hand_coordinates {
@@ -327,10 +326,10 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	cvtColor(roi, roi, CV_BGR2GRAY); //convert to grayscale
 	GaussianBlur(roi, roi, Size(5, 5), 5, 5); //Apply smoothing function - accuracy
 	threshold(roi, roi, threshold_val, 255, CV_THRESH_BINARY_INV); //Convert feed into contrast
-																   //Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-																   //dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
+	//Mat se = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+	//dilate(roi, roi, se); //Functions that smooth the image ... dunno if we need
 
-																   /*-calc centroid of the palm */ //-Magical
+	/*-calc centroid of the palm */ //-Magical
 	float cx = 0.0, cy = 0.0; //starting values
 	float sumi = 1.0;
 	for (int i = 0; i < roi.rows; i++) {
@@ -350,11 +349,6 @@ Hand_coordinates draw_palm_roi(Mat &frame) {
 	return palm;
 
 }
-
-/* Facedetection function
-- collect faces with Haar Cascade analysis.
-*/
-
 
 vector<Pca_data> read_known_faces() {
 	vector<Pca_data> face_pca;
@@ -432,7 +426,7 @@ string calc_euclidian(Mat testimage, vector<Pca_data> &known) {
 			}
 
 			float sum = 0;
-			int threshold = 10;
+			int threshold = 20;
 			int mini = 1000;
 
 			for (int s = 0; s < euclidiandist.size(); s++) {
@@ -441,21 +435,13 @@ string calc_euclidian(Mat testimage, vector<Pca_data> &known) {
 					//cout << mini << endl;
 					//cout << pca.name << endl;
 					name = pca.name;
+					min = mini;
 
 				}
 				sum += euclidiandist[s];
 			}
 			//cout << sum / euclidiandist.size() << endl;
 		}
-
-
-		/*
-		if (face) {
-		cout << "I KNOW YOU" << endl;
-		}
-		else
-		cout << "I dont know that face!" << endl;
-		*/
 	}
 
 	return name;
@@ -562,13 +548,12 @@ int main() {
 	//createTrackbar("Set Threshold Value", "live feed", &threshold_val, 255);
 
 	vector<Pca_data> known_faces = read_known_faces(); //read in available facedata
-													   //cout << known_faces.size() << endl;
-
-													   //2 function to train new faces
-													   //vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
-													   //face_processing(train_faces);
-													   //return 0;
-
+													   //cout << known_faces.size() << endl
+	//2 function to train new faces
+	//vector<Mat> train_faces = face_trainer(cap, frame, face_cascade);
+	//face_processing(train_faces);
+	//return 0;
+	
 													   // start capture
 	start_capture(cap, frame, face_cascade, known_faces);
 	return 0;
